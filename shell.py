@@ -106,7 +106,7 @@ class Shell():
     def __search_preceding_word(self, line, offset):
         found = False
         for i in range(min(len(line)-1, offset-1), -1, -1):
-            if line[i] != ' ':
+            if not self.__is_whitespace(line[i]):
                 found = True
             elif found:
                 return i+1, offset
@@ -147,6 +147,9 @@ class Shell():
     def __is_wchar(self, char_code):  # 中文, 全角英文,　等
         # return char_code >= 0x2e80 and char_code <= 0x9fff
         return char_code >= 0x2e80
+
+    def __is_whitespace(self, char):
+        return char == ' '
 
     def __string_width(self, string, l=None, r=None):
         if l is None:
@@ -240,12 +243,21 @@ class Shell():
                 new_c_index = i
             
             elif char_code == 9: # tab
-                if self.auto_complete and new_c_index:
+                if self.auto_complete and new_c_index and not self.__is_whitespace(new_line[new_c_index-1]):
                     prefixes = new_line[:new_c_index].split()
                     if prefixes:
-                        hints = self.auto_complete(prefixes[-1])
+                        prefix = prefixes[-1]
+                        hints = self.auto_complete(prefix)
                         if hints:
-                            self.__show_auto_complete_hints(hints)
+                            if len(hints) == 1:
+                                insert = hints[0][len(prefix):]
+                                if new_c_index == len(new_line):
+                                    insert = insert + ' '
+                                new_line = new_line[:new_c_index] + insert + new_line[new_c_index:]
+                                new_c_pos = new_c_pos + self.__string_width(insert)
+                                new_c_index = new_c_index + len(insert)
+                            else:
+                                self.__show_auto_complete_hints(hints)
 
             else:  # insert normal char
                 # if char_code == 9:  # tab
@@ -272,5 +284,5 @@ class Shell():
 if __name__ == "__main__":
     import time
     with Shell(prompt = lambda: "\033[38;5;2mlambor\033[0m " + time.strftime("%Y-%m-%d %H:%M:%S") +"> ", 
-        auto_complete = lambda predix: ['a','hello','where','1234567','jjjjjjjjjjjjjjjj','1','2','3']) as shell:
+        auto_complete = lambda prefix: [prefix + "guess"]) as shell:
         shell.run(onCommand = lambda cmdline: print("your input: " + cmdline))
